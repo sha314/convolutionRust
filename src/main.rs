@@ -1,5 +1,8 @@
 
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Instant};
+use std::env;
+
+use std::collections::HashMap;
 
 
 // list all command line options
@@ -59,6 +62,61 @@ fn help(){
     println!("{}", help_str);
 }
 
+// TODO
+// use dictionary or hashmap to store key values to be used later
+fn cmd_args(){
+    println!("cmmand line args");
+    let args: Vec<String> = env::args().collect();
+    // Type inference lets us omit an explicit type signature (which
+    // would be `HashMap<String, String>` in this example).
+    let mut args_dict = HashMap::new();
+
+
+    println!("{}", args.len());
+    if args.len() == 1{
+        help();
+        return;
+    }
+    // for arg in args{
+    //     print!("{}", &arg)
+    // }
+
+    let mut counter_i = 0;
+    let increment = 1;
+    loop{
+        print!("{} ", &args[counter_i]);
+
+        match  args[counter_i].as_str(){
+            "-h" => {
+                help();
+            },
+            "--help" => {
+                help();
+            },
+            "-t" => {
+                args_dict.insert("threads", args[counter_i+1].as_str());
+            },
+            "--threads" => {
+                args_dict.insert("threads", args[counter_i+1].as_str());
+            },
+            _ => {println!("It's nothing");}
+        }
+        counter_i += increment;
+
+        if counter_i >= args.len(){
+            break;
+        }
+    }
+
+    println!("Got the following key:value ");
+    for (key,val) in args_dict{
+        println!("{}:{}", key, val)
+    }
+
+
+}
+
+
 fn convolution_execute_v1(){
 
 }
@@ -70,8 +128,8 @@ fn convolution_execute_v1(){
 fn main() {
     println!("Convolution of big data using RUST");
 
-    help();
-    // cmd_args(argc, argv);
+    // help();
+    cmd_args();
 //    test1_convolution();
     let start = Instant::now();
     convolution_execute_v1();
@@ -79,6 +137,6 @@ fn main() {
 
     // let now = SystemTime::now();
     // println!("Program finished at {}", now);
-    println!("Time elapsed in expensive_function() is: {:?}", duration);
+    println!("Time elapsed : {:?} ", duration);
     
 }
