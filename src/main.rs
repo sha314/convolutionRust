@@ -1,4 +1,5 @@
 
+
 use std::time::{Instant};
 use std::env;
 
@@ -165,22 +166,226 @@ fn cmd_args(){
 }
 
 
-// 1D convolution. basic
-fn convolution_1d_v1(data_in:Vec<f64>, thread_count:u8){
-    let size_N = data_in.len();
-    let mut _forward_factor = vec![0.0; size_N];
-    let mut _backward_factor = vec![0.0; size_N];
+// 1D convolution. basic. single threaded
+fn convolution_1d_v1(data_in:& Vec<f64>) -> Vec<f64>{
+    let size_n = data_in.len();
+    let max_index = size_n - 1;
+    let step = size_n/100;
+    let mut _forward_factor = vec![0.0; size_n];
+    let mut _backward_factor = vec![0.0; size_n];
+
+    // output data matrix. first and last element remains unchanged 
+    let mut data_out = vec![0.0; size_n];
+    data_out[0] = data_in[0];
+    data_out[size_n-1] = data_in[size_n-1];
 
     let mut i=1;
     let mut if64: f64 = 0.0;
-    let sizeNf64: f64 = size_N as f64;
-    while i < size_N{
+    let size_n_f64: f64 = size_n as f64;
+
+    // setting up forward and backward factors (binomial distribution factors) ahead of use
+    while i < max_index{
         if64=i as f64;
-        _forward_factor[i]  = (sizeNf64 - if64 + 1.0) / if64; // i=0 will give undefined value
-        _backward_factor[i] = (if64 + 1.0) / (sizeNf64 - if64); // i=N will give undefined value
+        _forward_factor[i]  = (size_n_f64 - if64 + 1.0) / if64; // i=0 will give undefined value
+        _backward_factor[i] = (if64 + 1.0) / (size_n_f64 - if64); // i=N will give undefined value
         i += 1;
     }
 
+    let mut j = 1; // to avoid error. j is greater than zero and less than max index
+    let mut jf64 = 0.0;
+
+    // computing output data matrix using input matrix and binomial distributions (forward and backward factors)
+    while j < max_index{
+        jf64 = j as f64;
+        let prob     = jf64 / size_n_f64;
+        let mut factor = 0.0;
+        let mut binom = 0.0;
+        let mut prev = 0.0;
+        let mut binomNormalization_const = 1.0;
+        let mut sum_sum = 0.0;
+        
+
+        // forward iteraion part. from `j` to `N`
+        factor = prob / (1.0-prob);
+        prev   = 1.0;
+        let mut k=j;
+        while k < max_index{
+            binom     = prev * _forward_factor[k] * factor;
+            binomNormalization_const += binom;
+            sum_sum      += data_in[k] * binom;
+            prev      = binom;
+//            cout << binom << ", ";
+
+            k += 1;
+        }
+
+
+        // backward iteration part. from `j-1` to `1`
+        factor = (1.0-prob)/prob;
+        prev   = 1.0;
+        let mut k = j-1;
+        while k > 0{
+            binom     = prev * _backward_factor[k] * factor;
+            binomNormalization_const += binom;
+            sum_sum      += data_in[k] * binom;
+            prev      = binom;
+//            cout << binom << ", ";
+            k-=1;
+        }
+
+        data_out[j] = sum_sum / binomNormalization_const;
+        if j % step == 0 {
+            println!("progress {}%", jf64*100.0/size_n_f64 );
+            // print!("{}[2J", 27 as char);
+            // print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
+            // print!("\x1B[2J\x1B[1;1H");
+        }
+        j += 1;
+    }
+    data_out
+}
+
+
+fn compute_for_j_value(j:usize, _forward_factor:& Vec<f64>, _backward_factor:& Vec<f64>, data_in:& Vec<f64>) -> f64{
+    let size_n_f64 = data_in.len() as f64;
+    let max_index = data_in.len() - 1;
+    let jf64 = j as f64;
+    let prob     = jf64 / size_n_f64;
+    let mut factor = 0.0;
+    let mut binom = 0.0;
+    let mut prev = 0.0;
+    let mut binomNormalization_const = 1.0;
+    let mut sum_sum = 0.0;
+    
+
+    // forward iteraion part. from `j` to `N`
+    factor = prob / (1.0-prob);
+    prev   = 1.0;
+    let mut k=j;
+    while k < max_index{
+        binom     = prev * _forward_factor[k] * factor;
+        binomNormalization_const += binom;
+        sum_sum      += data_in[k] * binom;
+        prev      = binom;
+//            cout << binom << ", ";
+
+        k += 1;
+    }
+
+
+    // backward iteration part. from `j-1` to `1`
+    factor = (1.0-prob)/prob;
+    prev   = 1.0;
+    let mut k = j-1;
+    while k > 0{
+        binom     = prev * _backward_factor[k] * factor;
+        binomNormalization_const += binom;
+        sum_sum      += data_in[k] * binom;
+        prev      = binom;
+//            cout << binom << ", ";
+        k-=1;
+    }
+    // return value
+    sum_sum / binomNormalization_const
+}
+
+// compute convolution for j= j1 to j2
+// includes j1 and excludes j2
+fn convolution_j1_to_j2(j1:usize, j2:usize, step:usize,
+    _forward_factor:& Vec<f64>, _backward_factor:& Vec<f64>, data_in:& Vec<f64>,
+    data_out:&mut Vec<f64>
+){
+        let mut j = j1;
+        let size_n = data_in.len();
+        while j < j2{
+            data_out[j] = compute_for_j_value(j, &_forward_factor, &_backward_factor, &data_in);
+            
+            if j % step == 0 {
+                println!("progress {}%", j/size_n );
+                // print!("{}[2J", 27 as char);
+                // print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
+                // print!("\x1B[2J\x1B[1;1H");
+            }
+            j += 1;
+        }
+}
+
+// Get a tuple of (j1,j2)
+// Say data length is 100 and thread count is 2 then
+// => j1,j2=(0,50), (50, 100) will be  used
+// thread count 3 => j1,j2=(0,40),(40,70),(70,100)
+// how do we divide? simple put extra data in the first thread. Few extra data in one of the threads is not a problem
+fn get_j1_j2(size_n: usize, threads: usize) -> Vec<(usize, usize)>{
+    let per_thread = size_n/threads;
+    let mut i = 0;
+    let mut thelist: Vec<(usize, usize)> = vec![(0, 0)];
+    let mut prec_j = 0;
+    let mut current_j = per_thread;
+    while i < (threads-1){
+        thelist.push((prec_j, current_j));
+        prec_j = current_j;
+        current_j += per_thread;
+
+        i += 1;
+    }
+    thelist[0]=(i*per_thread, size_n); // replace initial (0,0). I will fix it later although it's not really a problem
+
+    println!("get_j1_j2 [");
+    for (j1, j2) in &thelist{
+        print!("({}, {})", j1, j2)
+    }
+    println!("]");
+
+
+    thelist 
+
+}
+
+// 1D convolution. basic. multi threaded
+fn convolution_1d_v2(data_in:& Vec<f64>, threads:usize) -> Vec<f64>{
+    let size_n = data_in.len();
+    let max_index = size_n - 1;
+    let step = size_n/100;
+    let mut _forward_factor = vec![0.0; size_n];
+    let mut _backward_factor = vec![0.0; size_n];
+
+    // output data matrix. first and last element remains unchanged 
+    let mut data_out = vec![0.0; size_n];
+    data_out[0] = data_in[0];
+    data_out[size_n-1] = data_in[size_n-1];
+
+    let mut i=1;
+    let mut if64: f64 = 0.0;
+    let size_n_f64: f64 = size_n as f64;
+
+    // setting up forward and backward factors (binomial distribution factors) ahead of use
+    while i < max_index{
+        if64=i as f64;
+        _forward_factor[i]  = (size_n_f64 - if64 + 1.0) / if64; // i=0 will give undefined value
+        _backward_factor[i] = (if64 + 1.0) / (size_n_f64 - if64); // i=N will give undefined value
+        i += 1;
+    }
+
+    let mut j = 1; // to avoid error. j is greater than zero and less than max index
+    let mut jf64 = 0.0;
+
+    // computing output data matrix using input matrix and binomial distributions (forward and backward factors)
+    // multi-threading. just consider that each j is independent of others
+    
+    let j1j2tuple=get_j1_j2(size_n, threads);
+
+    for (j1, j2) in j1j2tuple{
+        convolution_j1_to_j2(j1, j2, step, &_forward_factor, &_backward_factor, &data_in, &mut data_out);
+        
+        if j % step == 0 {
+            println!("progress {}%", jf64*100.0/size_n_f64 );
+            // print!("{}[2J", 27 as char);
+            // print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
+            // print!("\x1B[2J\x1B[1;1H");
+        }
+        j += 1;
+    }
+    data_out
 }
 
 
@@ -193,9 +398,28 @@ fn convolution_1d_v1(data_in:Vec<f64>, thread_count:u8){
 // 2D convolution. fast
     
 
+
+// it's like unit test
 fn test1_convolution(){
-    let data_in = vec![0.0; 100];
-    convolution_1d_v1(data_in, 2);
+    
+    // let mut data_in = vec![1.0; 1000];
+    // let data_out = convolution_1d_v1(&data_in);
+
+    get_j1_j2(100, 2);
+    get_j1_j2(100, 3);
+    get_j1_j2(100, 7);
+    // let data_out2 = convolution_1d_v2(&data_in, 4);
+    // let mut i = 0;
+    // while i < data_out.len(){
+    //     if (data_out[i] - data_out2[i]).abs() > 1e-5{
+    //         println!("Data mismatch for i={}", i)
+    //     }
+    // }
+    // println!("Output data [");
+    // for a in data_out{
+    //     print!("{}, ", a)
+    // }
+    // println!("]")
 }
 
 
@@ -203,10 +427,12 @@ fn main() {
     println!("Convolution of big data using RUST");
 
     // help();
-    cmd_args();
+    // cmd_args();
 //    test1_convolution();
     let start = Instant::now();
+
     test1_convolution();
+
     let duration = start.elapsed();
 
     // let now = SystemTime::now();

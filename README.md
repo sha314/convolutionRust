@@ -1,5 +1,8 @@
 # Convolution project using RUST language
 
+# The theory of convolution
+$X(\tau) = \int X(t) f(t) \dd{t}$
+
 
 # Command to compile
 
