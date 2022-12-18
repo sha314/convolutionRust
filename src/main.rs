@@ -165,12 +165,38 @@ fn cmd_args(){
 }
 
 
-fn convolution_execute_v1(){
+// 1D convolution. basic
+fn convolution_1d_v1(data_in:Vec<f64>, thread_count:u8){
+    let size_N = data_in.len();
+    let mut _forward_factor = vec![0.0; size_N];
+    let mut _backward_factor = vec![0.0; size_N];
+
+    let mut i=1;
+    let mut if64: f64 = 0.0;
+    let sizeNf64: f64 = size_N as f64;
+    while i < size_N{
+        if64=i as f64;
+        _forward_factor[i]  = (sizeNf64 - if64 + 1.0) / if64; // i=0 will give undefined value
+        _backward_factor[i] = (if64 + 1.0) / (sizeNf64 - if64); // i=N will give undefined value
+        i += 1;
+    }
 
 }
+
+
+// 1D convolution. fast
+
+
+// 2D convolution. basic
+
+
+// 2D convolution. fast
     
 
-    
+fn test1_convolution(){
+    let data_in = vec![0.0; 100];
+    convolution_1d_v1(data_in, 2);
+}
 
 
 fn main() {
@@ -180,7 +206,7 @@ fn main() {
     cmd_args();
 //    test1_convolution();
     let start = Instant::now();
-    convolution_execute_v1();
+    test1_convolution();
     let duration = start.elapsed();
 
     // let now = SystemTime::now();
