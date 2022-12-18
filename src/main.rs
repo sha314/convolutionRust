@@ -81,10 +81,10 @@ fn cmd_args(){
     //     print!("{}", &arg)
     // }
 
-    let mut counter_i = 0;
+    let mut counter_i = 1;
     let increment = 1;
     loop{
-        print!("{} ", &args[counter_i]);
+        print!("current key {} ", &args[counter_i]);
 
         match  args[counter_i].as_str(){
             "-h" => {
@@ -99,6 +99,54 @@ fn cmd_args(){
             "--threads" => {
                 args_dict.insert("threads", args[counter_i+1].as_str());
             },
+            "--in" => {
+                args_dict.insert("in_filename", args[counter_i+1].as_str());
+            },
+            "--out" => {
+                args_dict.insert("out_filename", args[counter_i+1].as_str());
+            },
+            "--threshold" => {
+                args_dict.insert("threshold", args[counter_i+1].as_str());
+            },
+            "--times" => {
+                args_dict.insert("n_times", args[counter_i+1].as_str());
+            },
+            "-v" => {
+                args_dict.insert("version", args[counter_i+1].as_str());
+            },
+            "--version" => {
+                args_dict.insert("version", args[counter_i+1].as_str());
+            },
+            "-p" => {
+                args_dict.insert("precision", args[counter_i+1].as_str());
+            },
+            "--precision" => {
+                args_dict.insert("precision", args[counter_i+1].as_str());
+            },
+            "-a" => {
+                args_dict.insert("without_cols", args[counter_i+1].as_str());
+            },
+            "--without" => {
+                args_dict.insert("without_cols", args[counter_i+1].as_str());
+            },
+            "-b" => {
+                args_dict.insert("with_cols", args[counter_i+1].as_str());
+            },
+            "--with" => {
+                args_dict.insert("with_cols", args[counter_i+1].as_str());
+            },
+            "-d" => {
+                args_dict.insert("delimiter", args[counter_i+1].as_str());
+            },
+            "--delimiter" => {
+                args_dict.insert("delimiter", args[counter_i+1].as_str());
+            },
+            "-w" => {
+                args_dict.insert("write_b_cols", "true");
+            },
+            "--write" => {
+                args_dict.insert("write_b_cols", "true");
+            },
             _ => {println!("It's nothing");}
         }
         counter_i += increment;
@@ -110,7 +158,7 @@ fn cmd_args(){
 
     println!("Got the following key:value ");
     for (key,val) in args_dict{
-        println!("{}:{}", key, val)
+        println!("{} : {}", key, val)
     }
 
 
