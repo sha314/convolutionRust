@@ -242,6 +242,7 @@ fn convolution_1d_v1(data_in:& Vec<f64>) -> Vec<f64>{
 
 
 fn compute_for_j_value(j:usize, _forward_factor:& Vec<f64>, _backward_factor:& Vec<f64>, data_in:& Vec<f64>) -> f64{
+    println!("Enter: compute_for_j_value");
     let size_n_f64 = data_in.len() as f64;
     let max_index = data_in.len() - 1;
     let jf64 = j as f64;
@@ -268,7 +269,7 @@ fn compute_for_j_value(j:usize, _forward_factor:& Vec<f64>, _backward_factor:& V
     // backward iteration part. from `j-1` to `1`
     let factor = (1.0-prob)/prob;
     let mut prev   = 1.0;
-    println!("value of j={}", j);
+    // println!("value of j={}", j);
     let mut k = j-1;
     while k > 0{
         let binom     = prev * _backward_factor[k] * factor;
@@ -279,6 +280,7 @@ fn compute_for_j_value(j:usize, _forward_factor:& Vec<f64>, _backward_factor:& V
         k-=1;
     }
     // return value
+    println!("Exit: compute_for_j_value");
     sum_sum / binom_normalization_const
 }
 
@@ -288,17 +290,18 @@ fn convolution_j1_to_j2(j1:usize, j2:usize, step:usize,
     _forward_factor:& Vec<f64>, _backward_factor:& Vec<f64>, data_in:& Vec<f64>,
     data_out:&mut Vec<f64>
 ){
+    println!("convolution_j1_to_j2 for ({j1},{j2}) pair");
         let mut j = j1;
         let size_n = data_in.len();
         while j < j2{
             data_out[j] = compute_for_j_value(j, &_forward_factor, &_backward_factor, &data_in);
             
-            if j % step == 0 {
-                println!("progress {}%", j/size_n );
-                // print!("{}[2J", 27 as char);
-                // print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
-                // print!("\x1B[2J\x1B[1;1H");
-            }
+            // if j % step == 0 {
+            //     println!("progress {}%", j/size_n );
+            //     // print!("{}[2J", 27 as char);
+            //     // print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
+            //     // print!("\x1B[2J\x1B[1;1H");
+            // }
             j += 1;
         }
 }
@@ -308,10 +311,13 @@ fn convolution_j1_to_j2(j1:usize, j2:usize, step:usize,
 // => j1,j2=(0,50), (50, 100) will be  used
 // thread count 3 => j1,j2=(0,40),(40,70),(70,100)
 // how do we divide? simple put extra data in the first thread. Few extra data in one of the threads is not a problem
+// Issue with j=0 and j=100 is that it can lead to undefined value (divide by zero). So we limit j to [1,N-1]
 fn get_j1_j2(size_n: usize, threads: usize) -> Vec<(usize, usize)>{
     let per_thread = size_n/threads;
     let mut i = 0;
-    let mut thelist: Vec<(usize, usize)> = vec![(i*per_thread, size_n)];// replace initial (0,0). I will fix it later although it's not really a problem
+    let mut thelist: Vec<(usize, usize)> = vec![((threads-1)*per_thread, size_n-1)];
+    // replace initial (0,0).
+
     let mut prec_j = 1;
     let mut current_j = per_thread;
     while i < (threads-1){
@@ -358,23 +364,15 @@ fn convolution_1d_v2(data_in:& Vec<f64>, threads:usize) -> Vec<f64>{
         i += 1;
     }
 
-    let mut j = 1; // to avoid error. j is greater than zero and less than max index
-
     // computing output data matrix using input matrix and binomial distributions (forward and backward factors)
     // multi-threading. just consider that each j is independent of others
     
     let j1j2tuple=get_j1_j2(size_n, threads);
 
     for (j1, j2) in j1j2tuple{
+        println!("for loop for {j1},{j2}");
         convolution_j1_to_j2(j1, j2, step, &_forward_factor, &_backward_factor, &data_in, &mut data_out);
         
-        if j % step == 0 {
-            println!("progress {}%", j*100/size_n );
-            // print!("{}[2J", 27 as char);
-            // print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
-            // print!("\x1B[2J\x1B[1;1H");
-        }
-        j += 1;
     }
     data_out
 }
@@ -394,23 +392,23 @@ fn convolution_1d_v2(data_in:& Vec<f64>, threads:usize) -> Vec<f64>{
 fn test1_convolution(){
     
     let data_in = vec![1.0; 1000];
-    // let data_out = convolution_1d_v1(&data_in);
+    let data_out = convolution_1d_v1(&data_in);
 
-    // get_j1_j2(100, 2);
-    // get_j1_j2(100, 3);
-    // get_j1_j2(100, 7);
+    get_j1_j2(100, 2);
+    get_j1_j2(100, 3);
+    get_j1_j2(100, 7);
     let data_out2 = convolution_1d_v2(&data_in, 4);
-    // let mut i = 0;
-    // while i < data_out.len(){
-    //     if (data_out[i] - data_out2[i]).abs() > 1e-5{
-    //         println!("Data mismatch for i={}", i)
-    //     }
-    // }
-    // println!("Output data [");
-    // for a in data_out{
-    //     print!("{}, ", a)
-    // }
-    // println!("]")
+    let mut i = 0;
+    while i < data_out.len(){
+        if (data_out[i] - data_out2[i]).abs() > 1e-5{
+            println!("Data mismatch for i={}", i)
+        }
+    }
+    println!("Output data [");
+    for a in data_out{
+        print!("{}, ", a)
+    }
+    println!("]")
 }
 
 
