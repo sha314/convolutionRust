@@ -6,6 +6,10 @@ use std::env;
 use std::collections::HashMap;
 
 
+use std::fs::File;
+use std::io::{prelude::*, BufReader};
+
+
 // list all command line options
 fn help(){
     let help_str = String::from("Usage:
@@ -419,6 +423,47 @@ fn test1_convolution(){
     // println!("]")
 }
 
+// V2 with file writing system
+fn test1_convolution_v2(){
+    
+    let data_in = vec![1.0; 1000];
+    let data_out = convolution_1d_v1(&data_in);
+
+    get_j1_j2(100, 2);
+    get_j1_j2(100, 3);
+    get_j1_j2(100, 7);
+    let data_out2 = convolution_1d_v2(&data_in, 4);
+    let mut i = 0;
+    while i < data_out.len(){
+        if (data_out[i] - data_out2[i]).abs() > 1e-5{
+            println!("Data mismatch for i={}", i);
+            process::exit(0x0100);
+        }
+        i+=1
+    }
+
+    print!("---------------");
+    // println!("Output data [");
+    // for a in data_out{
+    //     print!("{}, ", a);
+    // }
+    // println!("]");
+
+    print!("Data writing\n");
+    // setting up path and output file name.
+    let mut file = File::create("Data/output.txt").expect("could not create file");
+        
+    for a in data_out{
+        // writing on data
+        write!(file, "{}\n", a).expect("count");
+    }
+
+
+
+
+
+}
+
 
 fn main() {
     println!("Convolution of big data using RUST");
@@ -428,7 +473,8 @@ fn main() {
 //    test1_convolution();
     let start = Instant::now();
 
-    test1_convolution();
+    // test1_convolution();
+    test1_convolution_v2(); // this function will save data on file.
 
     let duration = start.elapsed();
 
